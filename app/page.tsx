@@ -258,8 +258,8 @@ export default function Personal() {
       >
         <div className="flex-1">
           <p className="text-zinc-600 dark:text-zinc-400">
-            Focused on creating intuitive and performant web experiences.
-            Bridging the gap between design and development.
+            I’m Denise, an MSc graduate from the University of Toronto. 
+            I use machine learning to study protein function and build tools that make research and computing more accessible.
           </p>
           <div className="mt-5 flex items-center justify-start space-x-3">
             {SOCIAL_LINKS.map((link) => (
