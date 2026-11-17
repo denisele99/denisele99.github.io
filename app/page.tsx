@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'motion/react'
-import { XIcon } from 'lucide-react'
+import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react'
 import { Spotlight } from '@/components/ui/spotlight'
 import { Magnetic } from '@/components/ui/magnetic'
 import {
@@ -10,15 +10,16 @@ import {
   MorphingDialogClose,
   MorphingDialogContainer,
 } from '@/components/ui/morphing-dialog'
-import Link from 'next/link'
-import { AnimatedBackground } from '@/components/ui/animated-background'
 import {
   PROJECTS,
   WORK_EXPERIENCE,
-  BLOG_POSTS,
   EMAIL,
   SOCIAL_LINKS,
 } from './data'
+
+import Image from 'next/image'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ProjectImage } from './data'
 
 const VARIANTS_CONTAINER = {
   hidden: { opacity: 0 },
@@ -39,51 +40,172 @@ const TRANSITION_SECTION = {
   duration: 0.3,
 }
 
-type ProjectVideoProps = {
-  src: string
+function GalleryViewer({
+  images,
+  selectedIndex,
+  onSelect,
+}: {
+  images: ProjectImage[]
+  selectedIndex: number
+  onSelect: (index: number) => void
+}) {
+  const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const count = images.length
+  const hasMultiple = count > 1
+  const selected = images[selectedIndex] ?? images[0]
+
+  const showPrevious = useCallback(
+    () => onSelect((selectedIndex - 1 + count) % count),
+    [selectedIndex, count, onSelect],
+  )
+  const showNext = useCallback(
+    () => onSelect((selectedIndex + 1) % count),
+    [selectedIndex, count, onSelect],
+  )
+
+  // Only mounted while the dialog is open, so arrow keys are scoped to it.
+  useEffect(() => {
+    if (!hasMultiple) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        showPrevious()
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        showNext()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [hasMultiple, showPrevious, showNext])
+
+  useEffect(() => {
+    thumbnailRefs.current[selectedIndex]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [selectedIndex])
+
+  const arrowClassName =
+    'absolute top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/80 p-2 text-zinc-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800'
+
+  return (
+    <>
+      <div className="relative h-[min(55dvh,32rem)]">
+        <Image
+          src={selected.src}
+          alt={selected.alt}
+          fill
+          unoptimized
+          className="rounded-xl object-contain"
+        />
+        {hasMultiple && (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={showPrevious}
+              className={`${arrowClassName} left-2`}
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={showNext}
+              className={`${arrowClassName} right-2`}
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-baseline justify-between gap-4 px-1 text-sm">
+        <p className="text-zinc-600 dark:text-zinc-400">{selected.alt}</p>
+        {hasMultiple && (
+          <p
+            className="shrink-0 text-zinc-500 tabular-nums dark:text-zinc-500"
+            aria-live="polite"
+          >
+            {selectedIndex + 1} / {count}
+          </p>
+        )}
+      </div>
+
+      {hasMultiple && (
+        <div className="mt-2 flex gap-2 overflow-x-auto p-1">
+          {images.map((image, index) => (
+            <button
+              key={image.src}
+              ref={(el) => {
+                thumbnailRefs.current[index] = el
+              }}
+              type="button"
+              aria-label={`Show ${image.alt}`}
+              aria-pressed={selectedIndex === index}
+              onClick={() => onSelect(index)}
+              className="relative h-14 w-24 shrink-0 overflow-hidden rounded-md border-2 border-transparent aria-[pressed=true]:border-blue-500"
+            >
+              <Image
+                src={image.src}
+                alt=""
+                fill
+                unoptimized
+                className="object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  )
 }
 
-function ProjectVideo({ src }: ProjectVideoProps) {
+function ProjectGallery({
+  name,
+  images,
+}: {
+  name: string
+  images: ProjectImage[]
+}) {
+  const [selectedIndex, setSelectedIndex] = useState(0)
+
+  const cover = images[0]
+  if (!cover) return null
+
   return (
     <MorphingDialog
-      transition={{
-        type: 'spring',
-        bounce: 0,
-        duration: 0.3,
-      }}
+      transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
     >
-      <MorphingDialogTrigger>
-        <video
-          src={src}
-          autoPlay
-          loop
-          muted
-          className="aspect-video w-full cursor-zoom-in rounded-xl"
-        />
+      <MorphingDialogTrigger aria-label={`Open ${name} image gallery`}>
+        {/* Start from the first image every time the gallery opens */}
+        <div
+          className="relative aspect-video w-full cursor-zoom-in overflow-hidden rounded-xl"
+          onClick={() => setSelectedIndex(0)}
+        >
+          <Image
+            src={cover.src}
+            alt={cover.alt}
+            fill
+            unoptimized
+            className="object-cover"
+          />
+        </div>
       </MorphingDialogTrigger>
+
       <MorphingDialogContainer>
-        <MorphingDialogContent className="relative aspect-video rounded-2xl bg-zinc-50 p-1 ring-1 ring-zinc-200/50 ring-inset dark:bg-zinc-950 dark:ring-zinc-800/50">
-          <video
-            src={src}
-            autoPlay
-            loop
-            muted
-            className="aspect-video h-[50vh] w-full rounded-xl md:h-[70vh]"
+        <MorphingDialogContent className="relative max-h-[85dvh] w-[min(92vw,56rem)] overflow-y-auto rounded-2xl bg-white p-3 pt-12 dark:bg-zinc-950">
+          <MorphingDialogClose className="top-2 right-2 z-20 rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">
+            <XIcon className="h-5 w-5" />
+          </MorphingDialogClose>
+          <GalleryViewer
+            images={images}
+            selectedIndex={selectedIndex}
+            onSelect={setSelectedIndex}
           />
         </MorphingDialogContent>
-        <MorphingDialogClose
-          className="fixed top-6 right-6 h-fit w-fit rounded-full bg-white p-1"
-          variants={{
-            initial: { opacity: 0 },
-            animate: {
-              opacity: 1,
-              transition: { delay: 0.3, duration: 0.1 },
-            },
-            exit: { opacity: 0, transition: { duration: 0 } },
-          }}
-        >
-          <XIcon className="h-5 w-5 text-zinc-500" />
-        </MorphingDialogClose>
       </MorphingDialogContainer>
     </MorphingDialog>
   )
@@ -152,7 +274,13 @@ export default function Personal() {
           {PROJECTS.map((project) => (
             <div key={project.name} className="space-y-2">
               <div className="relative rounded-2xl bg-zinc-50/40 p-1 ring-1 ring-zinc-200/50 ring-inset dark:bg-zinc-950/40 dark:ring-zinc-800/50">
-                <ProjectVideo src={project.video} />
+                {project.images.length > 0 ? (
+                  <ProjectGallery name={project.name} images={project.images} />
+                ) : (
+                  <div className="flex aspect-video items-center justify-center rounded-xl bg-zinc-100 text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                    Project screenshots coming soon
+                  </div>
+                )}
               </div>
               <div className="px-1">
                 <a
@@ -214,45 +342,9 @@ export default function Personal() {
         variants={VARIANTS_SECTION}
         transition={TRANSITION_SECTION}
       >
-        <h3 className="mb-3 text-lg font-medium">Blog</h3>
-        <div className="flex flex-col space-y-0">
-          <AnimatedBackground
-            enableHover
-            className="h-full w-full rounded-lg bg-zinc-100 dark:bg-zinc-900/80"
-            transition={{
-              type: 'spring',
-              bounce: 0,
-              duration: 0.2,
-            }}
-          >
-            {BLOG_POSTS.map((post) => (
-              <Link
-                key={post.uid}
-                className="-mx-3 rounded-xl px-3 py-3"
-                href={post.link}
-                data-id={post.uid}
-              >
-                <div className="flex flex-col space-y-1">
-                  <h4 className="font-normal dark:text-zinc-100">
-                    {post.title}
-                  </h4>
-                  <p className="text-zinc-500 dark:text-zinc-400">
-                    {post.description}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </AnimatedBackground>
-        </div>
-      </motion.section>
-
-      <motion.section
-        variants={VARIANTS_SECTION}
-        transition={TRANSITION_SECTION}
-      >
         <h3 className="mb-5 text-lg font-medium">Connect</h3>
         <p className="mb-5 text-zinc-600 dark:text-zinc-400">
-          Feel free to contact me at{' '}
+          Feel free to contact me {' '}
           <a className="underline dark:text-zinc-300" href={`mailto:${EMAIL}`}>
             {EMAIL}
           </a>
