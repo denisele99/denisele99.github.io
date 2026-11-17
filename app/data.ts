@@ -36,7 +36,7 @@ export const PROJECTS: Project[] = [
   {
     name: 'ComputeCast',
     description:`
-      GPU planning and benchmarking tool that estimates peak GPU memory, training time, and cloud cost for training ML models.\n
+      GPU planning and benchmarking tool that estimates peak GPU memory, runtime, and cloud cost for training ML models.\n
       Recommends optimizations based on your budget and hardware.
     `,
     link: 'https://denisele99.github.io/compute-cast',
